@@ -95,6 +95,7 @@
   .shard-state { font-size: 11px; color: var(--muted); }
   .shard.up   .shard-state { color: var(--up); }
   .shard.down .shard-state { color: var(--down); }
+  .shard:hover { background: #222; cursor: pointer; transform: translateY(-1px); transition: border-color 0.4s, background 0.2s, transform 0.2s; }
 
   .history-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
   .bars { display: flex; gap: 3px; align-items: flex-end; height: 44px; margin-bottom: 6px; }
@@ -217,7 +218,7 @@ function renderShards(shardRows) {
     const isUp = row ? row.status === 'up' : null;
     const stateClass = isUp === null ? '' : isUp ? 'up' : 'down';
     const stateLabel = isUp === null ? 'unknown' : isUp ? 'active' : 'inactive';
-    el.innerHTML += `
+    el.innerHTML += `<a href="/shard.html?id=${def.id}" style="text-decoration:none;color:inherit;">
       <div class="shard ${stateClass}">
         <div class="shard-top">
           <span class="shard-num">#${def.id}</span>
