@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Server Status</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --up: #1D9E75;
+    --down: #E24B4A;
+    --degraded: #EF9F27;
+    --bg: #0e0e0e;
+    --surface: #1a1a1a;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0f0f0;
+    --muted: #888;
+    --dim: #444;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+  }
+  .container { width: 100%; max-width: 580px; }
+
+  .top-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .server-label { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+
+  .status-hero { display: flex; align-items: center; gap: 20px; margin-bottom: 2rem; }
+  .indicator { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
+  .dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--dim); transition: background 0.5s;
+  }
+  .ring {
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 1.5px solid var(--dim);
+    position: absolute; top: 0; left: 0; opacity: 0;
+  }
+  body.up .dot { background: var(--up); }
+  body.up .ring { border-color: var(--up); animation: ripple 2s ease-out infinite; }
+  body.down .dot { background: var(--down); }
+  body.down .ring { border-color: var(--down); animation: ripple 1.4s ease-out infinite; }
+  body.degraded .dot { background: var(--degraded); }
+  body.degraded .ring { border-color: var(--degraded); animation: ripple 1.8s ease-out infinite; }
+  @keyframes ripple { 0% { transform: scale(0.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 0; } }
+
+  .hero-label { font-family: 'IBM Plex Mono', monospace; font-size: 30px; font-weight: 500; color: var(--dim); transition: color 0.4s; line-height: 1; }
+  body.up .hero-label { color: var(--up); }
+  body.down .hero-label { color: var(--down); }
+  body.degraded .hero-label { color: var(--degraded); }
+  .hero-sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 2rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .card-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .card-val { font-family: 'IBM Plex Mono', monospace; font-size: 16px; font-weight: 500; color: var(--text); }
+
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+
+  .shards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 2rem; }
+  .shard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color 0.4s;
+  }
+  .shard.up   { border-color: rgba(29,158,117,0.3); }
+  .shard.down { border-color: rgba(226,75,74,0.3); }
+  .shard-top { display: flex; align-items: center; justify-content: space-between; }
+  .shard-num { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--dim); }
+  .shard-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); transition: background 0.4s; }
+  .shard.up   .shard-dot { background: var(--up); }
+  .shard.down .shard-dot { background: var(--down); }
+  .shard-label { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; color: var(--text); }
+  .shard-state { font-size: 11px; color: var(--muted); }
+  .shard.up   .shard-state { color: var(--up); }
+  .shard.down .shard-state { color: var(--down); }
+
+  .history-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+  .bars { display: flex; gap: 3px; align-items: flex-end; height: 44px; margin-bottom: 6px; }
+  .bar { flex: 1; border-radius: 2px; background: var(--surface); height: 6px; transition: background 0.3s; }
+  .bar.up       { background: var(--up);       height: 36px; }
+  .bar.down     { background: var(--down);     height: 28px; }
+  .bar.degraded { background: var(--degraded); height: 22px; }
+  .bars-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); font-family: 'IBM Plex Mono', monospace; margin-bottom: 2rem; }
+
+  .actions { display: flex; align-items: center; gap: 12px; margin-bottom: 2rem; }
+  .btn { font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: background 0.2s, color 0.2s; }
+  .btn:hover { background: var(--surface); color: var(--text); }
+  .countdown { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--dim); }
+
+  .footer { border-top: 1px solid var(--border); padding-top: 1rem; display: flex; align-items: center; gap: 8px; }
+  .footer-label { font-size: 11px; color: var(--dim); font-family: 'IBM Plex Mono', monospace; flex-shrink: 0; }
+  .endpoint-pill { font-family: 'IBM Plex Mono', monospace; font-size: 11px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="top-bar">
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+      <rect x="1" y="5" width="18" height="11" rx="2" stroke="#888" stroke-width="1.2" fill="none"/>
+      <circle cx="4.5" cy="10.5" r="1" fill="#888"/>
+      <line x1="7" y1="8" x2="16" y2="8" stroke="#444" stroke-width="1"/>
+      <line x1="7" y1="10.5" x2="16" y2="10.5" stroke="#444" stroke-width="1"/>
+      <line x1="7" y1="13" x2="12" y2="13" stroke="#444" stroke-width="1"/>
+    </svg>
+    <span class="server-label">EC2 · us-east-2 · 18.191.209.68</span>
+  </div>
+
+  <div class="status-hero">
+    <div class="indicator">
+      <div class="dot"></div>
+      <div class="ring"></div>
+    </div>
+    <div>
+      <div class="hero-label" id="hero-label">Loading…</div>
+      <div class="hero-sub" id="hero-sub">Fetching latest status</div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Shards up</div>
+      <div class="card-val" id="shards-up">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Last check</div>
+      <div class="card-val" id="last-check">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Uptime (30)</div>
+      <div class="card-val" id="uptime">—</div>
+    </div>
+  </div>
+
+  <div class="section-label">Shards</div>
+  <div class="shards" id="shards"></div>
+
+  <div class="history-label">Last 30 checks</div>
+  <div class="bars" id="bars"></div>
+  <div class="bars-meta"><span>oldest</span><span>latest</span></div>
+
+  <div class="actions">
+    <button class="btn" onclick="load()">↻ Refresh</button>
+    <span class="countdown" id="countdown">Auto-refreshes every 60s</span>
+  </div>
+
+  <div class="footer">
+    <span class="footer-label">monitored via</span>
+    <span class="endpoint-pill">systemctl · 6 services</span>
+  </div>
+
+</div>
+<script>
+const SUPABASE_URL = 'https://fjzqcanwxvlcngonozza.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqenFjYW53eHZsY25nb25venphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTM1MTAwMiwiZXhwIjoyMDkwOTI3MDAyfQ.-L2lj3DCjQFgFJi2wCjKcnS9zV205KsG9y1LN8VfNek';
+
+const SHARD_DEFS = [
+  { id: 1, label: 'Elite Server' },
+  { id: 2, label: 'Health Server' },
+  { id: 3, label: 'LA Bot' },
+  { id: 4, label: 'Midas Bot' },
+  { id: 5, label: 'Midas Dev' },
+  { id: 6, label: 'Murray Bot' },
+];
+
+let cd = 60;
+
+function fmt(iso) {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function sbFetch(path) {
+  return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  }).then(r => r.json());
+}
+
+function renderBars(rows) {
+  const el = document.getElementById('bars');
+  el.innerHTML = '';
+  const padded = Array(30).fill('unknown');
+  rows.forEach((r, i) => { padded[30 - rows.length + i] = r.status; });
+  padded.forEach(s => {
+    const b = document.createElement('div');
+    b.className = 'bar ' + s;
+    el.appendChild(b);
+  });
+}
+
+function renderShards(shardRows) {
+  const el = document.getElementById('shards');
+  el.innerHTML = '';
+  SHARD_DEFS.forEach(def => {
+    const row = shardRows.find(r => r.shard_id === def.id);
+    const isUp = row ? row.status === 'up' : null;
+    const stateClass = isUp === null ? '' : isUp ? 'up' : 'down';
+    const stateLabel = isUp === null ? 'unknown' : isUp ? 'active' : 'inactive';
+    el.innerHTML += `
+      <div class="shard ${stateClass}">
+        <div class="shard-top">
+          <span class="shard-num">#${def.id}</span>
+          <span class="shard-dot"></span>
+        </div>
+        <div class="shard-label">${def.label}</div>
+        <div class="shard-state">${stateLabel}</div>
+      </div>`;
+  });
+}
+
+async function load() {
+  cd = 60;
+  try {
+    const [overall, shards] = await Promise.all([
+      sbFetch('server_status?select=status,checked_at&order=checked_at.desc&limit=30'),
+      sbFetch('shard_status?select=shard_id,label,status,checked_at&order=checked_at.desc&limit=6')
+    ]);
+
+    if (!overall.length) return;
+    const latest = overall[0];
+    const status = latest.status;
+
+    document.body.className = status;
+    document.getElementById('hero-label').textContent =
+      status === 'up' ? 'Operational' :
+      status === 'degraded' ? 'Degraded Performance' : 'Outage';
+    document.getElementById('hero-sub').textContent =
+      status === 'up' ? 'All services running normally' :
+      status === 'degraded' ? 'Some services are down' : 'All services are unreachable';
+
+    const upShards = shards.filter(s => s.status === 'up').length;
+    document.getElementById('shards-up').textContent = `${upShards} / 6`;
+    document.getElementById('last-check').textContent = fmt(latest.checked_at);
+
+    const upCount = overall.filter(r => r.status === 'up').length;
+    document.getElementById('uptime').textContent = Math.round((upCount / overall.length) * 100) + '%';
+
+    renderShards(shards);
+    renderBars([...overall].reverse());
+  } catch(e) {
+    document.getElementById('hero-sub').textContent = 'Could not reach Supabase';
+  }
+}
+
+load();
+setInterval(() => {
+  cd--;
+  if (cd <= 0) { load(); cd = 60; }
+  document.getElementById('countdown').textContent = 'Next refresh in ' + cd + 's';
+}, 1000);
+</script>
+</body>
+</html>
